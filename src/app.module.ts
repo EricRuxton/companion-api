@@ -5,10 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { EventsModule } from './events/events.module';
 import { PlayersModule } from './players/players.module';
 
-const ormconfig = require('../ormconfig.json');
+// const ormconfig = require('../ormconfig.json');
 
 @Module({
-  imports: [TypeOrmModule.forRoot(ormconfig), EventsModule, PlayersModule],
+  imports: [ EventsModule, PlayersModule],
   controllers: [AppController],
   providers: [AppService],
 })
