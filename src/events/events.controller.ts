@@ -60,7 +60,7 @@ export class EventsController {
 
   @Post("markTableComplete")
   markTableComplete(@Body("table") table: TableDto) {
-    return this.eventsService.markTableComplete(table);
+    return this.eventsService.setTableVoting(table);
   }
 
   @Post("submitVote")
@@ -90,5 +90,15 @@ export class EventsController {
   @Get("standings")
   standings() {
     return this.eventsService.standings();
+  }
+
+  @Post("removeVote")
+  removeVote(@Body() req) {
+    return this.eventsService.removeVote(req);
+  }
+
+  @Post("addVote")
+  addVote(@Body() req) {
+    return this.eventsService.addVote(req);
   }
 }

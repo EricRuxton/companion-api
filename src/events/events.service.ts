@@ -1,11 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { TournamentDto } from "./dtos/tournamentDto.dto";
-import { PlayerDto } from "../players/dtos/playerDto.dto";
+import { OpponentDto, PlayerDto } from "../players/dtos/playerDto.dto";
 import { TableDto } from "../tables/dtos/tableDto.dto";
 
 let Tournament: TournamentDto;
 
 export const FULL_TABLE_SEATING = 4;
+
+export const MANUAL_ENTRANT = {
+  id: "MANUAL ENTRANT",
+  NAME: "MANUAL ENTRANT"
+};
 
 @Injectable()
 export class EventsService {
@@ -21,9 +26,11 @@ export class EventsService {
   }
 
   async addPlayer(player: PlayerDto) {
+    player.APP = 0;
     player.points = 0;
     player.matchPoints = 0;
     player.dropped = false;
+    player.opponents = [];
     if (!Tournament.players) {
       Tournament.players = [player];
     } else {
@@ -155,9 +162,13 @@ export class EventsService {
     if (Tournament) {
       for (let table of Tournament.tables) {
         if (table.tableNumber == req.table.tableNumber) {
-          for (let player of table.players) {
-            if (player.id == req.userId) {
-              player.matchPoints = req.table.players.filter((p) => p.id === req.userId)[0].matchPoints;
+          if (req.userId == null) {
+            table.matchStatus = "Completed";
+          } else {
+            for (let player of table.players) {
+              if (player.id == req.userId) {
+                player.matchPoints = req.table.players.filter((p) => p.id === req.userId)[0].matchPoints;
+              }
             }
           }
         }
@@ -186,9 +197,9 @@ export class EventsService {
             }
           }
         }
-        if (winners.length == 1) {
-          for (let player of table.players) {
-            if (player.id == winners[0].id) {
+        for (let player of table.players) {
+          for (let voteWinner of winners) {
+            if (player.id == voteWinner.id) {
               player.matchPoints++;
             }
           }
@@ -199,10 +210,10 @@ export class EventsService {
     return Tournament;
   }
 
-  markTableComplete(TTS: TableDto) {
+  setTableVoting(TTS: TableDto) {
     for (let table of Tournament.tables) {
       if (table.tableNumber == TTS.tableNumber && table.roundNumber == Tournament.currentRound) {
-        table.matchStatus = "Voting";
+        table.matchStatus = "Completed";
       }
     }
   }
@@ -218,17 +229,48 @@ export class EventsService {
         for (let player of table.players) {
           if (player.id === voter.id) player.voteSubmitted = true;
         }
-        console.log({ votes: table.votes.length, mobilePLayers: table.players.filter((p) => p.mobileUser).length });
-        if (table.votes.length == table.players.filter((p) => p.mobileUser).length) {
-          this.submitTable(table);
-        }
       }
     }
   }
 
   async generateNextRound() {
     for (let table of Tournament.tables) {
+      let winners = [];
+      for (let player of table.players) {
+        if (table.votes) {
+          player.votes = table.votes.filter((ballot) => ballot.vote.id == player.id).length;
+          if (winners.length == 0) {
+            winners.push(player);
+          } else {
+            if (player.votes > winners[0].votes) {
+              winners = [];
+              winners.push(player);
+            } else if (player.votes == winners[0].votes) {
+              winners.push(player);
+            }
+          }
+        }
+      }
+      for (let player of table.players) {
+        for (let opponent of table.players.filter((p) => p.id != player.id)) {
+          if (player.opponents.some((o) => o.id == opponent.id)) {
+            for (let oldOpponent of player.opponents) {
+              if (oldOpponent.id == opponent.id) {
+                oldOpponent.points = opponent.points + opponent.matchPoints;
+              }
+            }
+          } else {
+            let newOpponent = new OpponentDto();
+            newOpponent.id = opponent.id;
+            newOpponent.points = opponent.matchPoints;
+            player.opponents.push(newOpponent);
+          }
+        }
+      }
       for (let matchPlayer of table.players) {
+        if (winners.some((player) => player.id == matchPlayer.id)) {
+          matchPlayer.points++;
+        }
         for (let player of Tournament.players) {
           if (player.id == matchPlayer.id) {
             player.points += matchPlayer.matchPoints;
@@ -236,16 +278,24 @@ export class EventsService {
             player.voteSubmitted = false;
             player.paired = false;
             player.matchPoints = 0;
+            player.opponents = matchPlayer.opponents;
           }
         }
       }
     }
-    Tournament.players = Tournament.players.sort((p1, p2) => p1.points < p2.points ? 1 : -1).filter((p) => !p.dropped);
+    console.log("finished tables");
+    for (let player of Tournament.players) {
+      for (let opponent of player.opponents) {
+        opponent.points = Tournament.players.filter((p) => p.id == opponent.id)[0].points;
+      }
+    }
+    for (let player of Tournament.players) {
+      console.log(player.opponents);
+      player.APP = player.opponents.map((o) => o.points).reduce((addend, adder) => addend + adder) / player.opponents.length;
+    }
+    Tournament.players = Tournament.players.sort((p1, p2) => p2.points - p1.points || p2.APP - p1.APP).filter((p) => !p.dropped);
     Tournament.roundOngoing = false;
-    console.log(Tournament);
-    this.createTables().then(() => {
-      console.log(Tournament);
-    });
+    await this.createTables();
   }
 
   removePlayer(PTR: PlayerDto) {
@@ -267,6 +317,36 @@ export class EventsService {
 
   standings() {
     return Tournament.players;
+  }
+
+  removeVote(req) {
+    console.log(req.userId);
+    for (let table of Tournament.tables) {
+      if (table.tableNumber == req.table.tableNumber) {
+        if (table.votes && table.votes.filter((ballot) => ballot.vote.id === req.userId).length > 0) {
+          for (let ballot of table.votes) {
+            if (ballot.vote.id == req.userId) {
+              table.votes = table.votes.filter((vote) => vote != ballot);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  addVote(req) {
+    console.log(req);
+    for (let table of Tournament.tables) {
+      if (table.tableNumber == req.table.tableNumber) {
+        if (table.votes) {
+          table.votes.push({ vote: req.user, voter: MANUAL_ENTRANT as unknown as PlayerDto });
+        } else {
+          table.votes = [];
+          table.votes.push({ vote: req.user, voter: MANUAL_ENTRANT as unknown as PlayerDto });
+        }
+      }
+    }
   }
 
 }

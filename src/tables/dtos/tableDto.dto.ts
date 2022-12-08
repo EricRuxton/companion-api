@@ -5,5 +5,5 @@ export class TableDto {
   players: PlayerDto[];
   roundNumber: number;
   matchStatus: string;
-  votes?: [{ voter: PlayerDto, vote: PlayerDto }];
+  votes?: { voter: PlayerDto, vote: PlayerDto }[];
 }

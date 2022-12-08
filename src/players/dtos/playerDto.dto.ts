@@ -9,4 +9,11 @@ export class PlayerDto {
   voteSubmitted: boolean = false;
   mobileUser: boolean = false;
   votes: number = 0;
+  opponents: OpponentDto[];
+  APP: number = 0;
+}
+
+export class OpponentDto {
+  id: string;
+  points: number;
 }
