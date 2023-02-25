@@ -1,21 +1,20 @@
-import { Injectable } from "@nestjs/common";
-import { TournamentDto } from "./dtos/tournamentDto.dto";
-import { OpponentDto, PlayerDto } from "../players/dtos/playerDto.dto";
-import { TableDto } from "../tables/dtos/tableDto.dto";
+import { Injectable } from '@nestjs/common';
+import { TournamentDto } from './dtos/tournamentDto.dto';
+import { OpponentDto, PlayerDto } from '../players/dtos/playerDto.dto';
+import { TableDto } from '../tables/dtos/tableDto.dto';
 
 let Tournament: TournamentDto;
 
 export const FULL_TABLE_SEATING = 4;
 
 export const MANUAL_ENTRANT = {
-  id: "MANUAL ENTRANT",
-  NAME: "MANUAL ENTRANT"
+  id: 'MANUAL ENTRANT',
+  NAME: 'MANUAL ENTRANT',
 };
 
 @Injectable()
 export class EventsService {
-  constructor() {
-  }
+  constructor() {}
 
   async createEvent(eventCode) {
     Tournament = new TournamentDto();
@@ -42,8 +41,7 @@ export class EventsService {
 
   async getPlayers() {
     if (Tournament) {
-      if (Tournament.players)
-        return Tournament.players;
+      if (Tournament.players) return Tournament.players;
     }
   }
 
@@ -69,7 +67,9 @@ export class EventsService {
           }
           Tournament.roundOngoing = true;
           if (!Tournament.ongoing) {
-            Tournament.numberOfRounds = Math.floor(Math.log2(Tournament.players.length));
+            Tournament.numberOfRounds = Math.floor(
+              Math.log2(Tournament.players.length),
+            );
             Tournament.numberOfPlayers = Tournament.players.length;
             let array = Tournament.players;
             for (let i = array.length - 1; i > 0; i--) {
@@ -84,15 +84,20 @@ export class EventsService {
           });
           Tournament.currentRound++;
           let brokeLast = false;
-          while (Tournament.players.filter(p => !p.paired).length > 0) {
-            if ((Tournament.players.filter(p => !p.paired).length == FULL_TABLE_SEATING ||
-                (Tournament.players.filter(p => !p.paired).length - 4 >= 3))
-              && !brokeLast) {
+          while (Tournament.players.filter((p) => !p.paired).length > 0) {
+            if (
+              (Tournament.players.filter((p) => !p.paired).length ==
+                FULL_TABLE_SEATING ||
+                Tournament.players.filter((p) => !p.paired).length - 4 >= 3) &&
+              !brokeLast
+            ) {
               let table: TableDto = {
-                players: Tournament.players.filter(p => !p.paired).slice(0, 4),
-                tableNumber: tables ? (tables.length + 1) : 1,
+                players: Tournament.players
+                  .filter((p) => !p.paired)
+                  .slice(0, 4),
+                tableNumber: tables ? tables.length + 1 : 1,
                 roundNumber: Tournament.currentRound,
-                matchStatus: "Ongoing"
+                matchStatus: 'Ongoing',
               };
               if (tables.length == 0) {
                 tables = [table];
@@ -100,12 +105,17 @@ export class EventsService {
                 tables.push(table);
               }
               brokeLast = false;
-            } else if (Tournament.players.filter(p => !p.paired).length % 3 == 0) {
+            } else if (
+              Tournament.players.filter((p) => !p.paired).length % 3 ==
+              0
+            ) {
               let table: TableDto = {
-                players: Tournament.players.filter(p => !p.paired).slice(0, 3),
-                tableNumber: tables ? (tables.length + 1) : 1,
+                players: Tournament.players
+                  .filter((p) => !p.paired)
+                  .slice(0, 3),
+                tableNumber: tables ? tables.length + 1 : 1,
                 roundNumber: Tournament.currentRound,
-                matchStatus: "Ongoing"
+                matchStatus: 'Ongoing',
               };
               if (tables.length == 0) {
                 tables = [table];
@@ -131,17 +141,17 @@ export class EventsService {
               }
             }
           }
-          if (Tournament.currentRound === 1)
-            Tournament.tables = [...tables];
-          else
-            Tournament.tables.push(...tables);
+          if (Tournament.currentRound === 1) Tournament.tables = [...tables];
+          else Tournament.tables.push(...tables);
         }
       }
     }
     return {
       currentRound: Tournament.currentRound,
       numberOfRounds: Tournament.numberOfRounds,
-      ActiveTables: Tournament.tables.filter((t) => t.roundNumber == Tournament.currentRound)
+      ActiveTables: Tournament.tables.filter(
+        (t) => t.roundNumber == Tournament.currentRound,
+      ),
     };
   }
 
@@ -149,10 +159,13 @@ export class EventsService {
     if (Tournament) {
       if (Tournament.roundOngoing) {
         return {
-          ...Tournament
-            .tables.filter((table) => (table.players.some((player) => player.id == userId) && table.roundNumber == Tournament.currentRound))[0],
+          ...Tournament.tables.filter(
+            (table) =>
+              table.players.some((player) => player.id == userId) &&
+              table.roundNumber == Tournament.currentRound,
+          )[0],
           numberOfRounds: Tournament.numberOfRounds,
-          tournamentComplete: Tournament.finished
+          tournamentComplete: Tournament.finished,
         };
       }
     }
@@ -163,11 +176,13 @@ export class EventsService {
       for (let table of Tournament.tables) {
         if (table.tableNumber == req.table.tableNumber) {
           if (req.userId == null) {
-            table.matchStatus = "Completed";
+            table.matchStatus = 'Completed';
           } else {
             for (let player of table.players) {
               if (player.id == req.userId) {
-                player.matchPoints = req.table.players.filter((p) => p.id === req.userId)[0].matchPoints;
+                player.matchPoints = req.table.players.filter(
+                  (p) => p.id === req.userId,
+                )[0].matchPoints;
               }
             }
           }
@@ -179,7 +194,10 @@ export class EventsService {
 
   submitTable(TTS: TableDto) {
     for (let table of Tournament.tables) {
-      if (table.tableNumber == TTS.tableNumber && table.roundNumber == Tournament.currentRound) {
+      if (
+        table.tableNumber == TTS.tableNumber &&
+        table.roundNumber == Tournament.currentRound
+      ) {
         let winners = [];
         for (let player of table.players) {
           if (table.votes) {
@@ -204,7 +222,7 @@ export class EventsService {
             }
           }
         }
-        table.matchStatus = "Completed";
+        table.matchStatus = 'Completed';
       }
     }
     return Tournament;
@@ -212,15 +230,22 @@ export class EventsService {
 
   setTableVoting(TTS: TableDto) {
     for (let table of Tournament.tables) {
-      if (table.tableNumber == TTS.tableNumber && table.roundNumber == Tournament.currentRound) {
-        table.matchStatus = "Completed";
+      if (
+        table.tableNumber == TTS.tableNumber &&
+        table.roundNumber == Tournament.currentRound
+      ) {
+        for (let player of table.players) player.voteSubmitted = true;
+        table.matchStatus = 'Completed';
       }
     }
   }
 
   submitVote(vote: PlayerDto, tableNumber: number, voter: PlayerDto) {
     for (let table of Tournament.tables) {
-      if (table.tableNumber == tableNumber && table.roundNumber == Tournament.currentRound) {
+      if (
+        table.tableNumber == tableNumber &&
+        table.roundNumber == Tournament.currentRound
+      ) {
         if (table.votes == null) {
           table.votes = [{ voter, vote }];
         } else {
@@ -238,7 +263,9 @@ export class EventsService {
       let winners = [];
       for (let player of table.players) {
         if (table.votes) {
-          player.votes = table.votes.filter((ballot) => ballot.vote.id == player.id).length;
+          player.votes = table.votes.filter(
+            (ballot) => ballot.vote.id == player.id,
+          ).length;
           if (winners.length == 0) {
             winners.push(player);
           } else {
@@ -283,17 +310,24 @@ export class EventsService {
         }
       }
     }
-    console.log("finished tables");
+    console.log('finished tables');
     for (let player of Tournament.players) {
       for (let opponent of player.opponents) {
-        opponent.points = Tournament.players.filter((p) => p.id == opponent.id)[0].points;
+        opponent.points = Tournament.players.filter(
+          (p) => p.id == opponent.id,
+        )[0].points;
       }
     }
     for (let player of Tournament.players) {
       console.log(player.opponents);
-      player.APP = player.opponents.map((o) => o.points).reduce((addend, adder) => addend + adder) / player.opponents.length;
+      player.APP =
+        player.opponents
+          .map((o) => o.points)
+          .reduce((addend, adder) => addend + adder) / player.opponents.length;
     }
-    Tournament.players = Tournament.players.sort((p1, p2) => p2.points - p1.points || p2.APP - p1.APP).filter((p) => !p.dropped);
+    Tournament.players = Tournament.players
+      .sort((p1, p2) => p2.points - p1.points || p2.APP - p1.APP)
+      .filter((p) => !p.dropped);
     Tournament.roundOngoing = false;
     await this.createTables();
   }
@@ -305,7 +339,10 @@ export class EventsService {
 
   dropPlayer(PTD: PlayerDto, pTable) {
     for (let table of Tournament.tables) {
-      if (table.tableNumber == pTable.tableNumber && table.roundNumber == Tournament.currentRound) {
+      if (
+        table.tableNumber == pTable.tableNumber &&
+        table.roundNumber == Tournament.currentRound
+      ) {
         for (let player of table.players) {
           if (player.id == PTD.id) {
             player.dropped = !player.dropped;
@@ -323,7 +360,11 @@ export class EventsService {
     console.log(req.userId);
     for (let table of Tournament.tables) {
       if (table.tableNumber == req.table.tableNumber) {
-        if (table.votes && table.votes.filter((ballot) => ballot.vote.id === req.userId).length > 0) {
+        if (
+          table.votes &&
+          table.votes.filter((ballot) => ballot.vote.id === req.userId).length >
+            0
+        ) {
           for (let ballot of table.votes) {
             if (ballot.vote.id == req.userId) {
               table.votes = table.votes.filter((vote) => vote != ballot);
@@ -340,13 +381,18 @@ export class EventsService {
     for (let table of Tournament.tables) {
       if (table.tableNumber == req.table.tableNumber) {
         if (table.votes) {
-          table.votes.push({ vote: req.user, voter: MANUAL_ENTRANT as unknown as PlayerDto });
+          table.votes.push({
+            vote: req.user,
+            voter: MANUAL_ENTRANT as unknown as PlayerDto,
+          });
         } else {
           table.votes = [];
-          table.votes.push({ vote: req.user, voter: MANUAL_ENTRANT as unknown as PlayerDto });
+          table.votes.push({
+            vote: req.user,
+            voter: MANUAL_ENTRANT as unknown as PlayerDto,
+          });
         }
       }
     }
   }
-
 }
