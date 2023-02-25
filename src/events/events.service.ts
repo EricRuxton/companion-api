@@ -313,9 +313,13 @@ export class EventsService {
     console.log('finished tables');
     for (let player of Tournament.players) {
       for (let opponent of player.opponents) {
-        opponent.points = Tournament.players.filter(
-          (p) => p.id == opponent.id,
-        )[0].points;
+        if (
+          Tournament.players.filter((player) => player.id == opponent.id)
+            .length != 0
+        )
+          opponent.points = Tournament.players.filter(
+            (p) => p.id == opponent.id,
+          )[0].points;
       }
     }
     for (let player of Tournament.players) {
